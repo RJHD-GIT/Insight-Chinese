@@ -1,0 +1,6 @@
+tkWinPrintCanvas.o: tkWinPrintCanvas.c /usr/include/stdc-predef.h \
+ ../config.h
+
+/usr/include/stdc-predef.h:
+
+../config.h:

@@ -1,0 +1,201 @@
+* Tue Feb 17 2015 Patrick Monnerat <pm@datasphere.ch>
+- Unbundle tcl/tk/itcl/itk/iwidgets.
+
+diff -Naurp a/configure.ac b/configure.ac
+--- a/configure.ac	2021-05-07 11:01:46.944224482 +0200
++++ b/configure.ac	2021-05-21 13:25:25.279043149 +0200
+@@ -132,7 +132,7 @@ build_tools="build-texinfo build-flex bu
+ 
+ # these libraries are used by various programs built for the host environment
+ #f
+-host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktrace libcpp libdecnumber gmp mpfr mpc isl libelf libiconv libctf"
++host_libs="intl libiberty opcodes bfd readline libgui zlib libbacktrace libcpp libdecnumber gmp mpfr mpc isl libelf libiconv libctf"
+ 
+ # these tools are built for the host environment
+ # Note, the powerpc-eabi build depends on sim occurring before gdb in order to
+@@ -258,7 +258,7 @@ fi
+ case ${with_x} in
+   yes | "") ;; # the default value for this tree is that X11 is available
+   no)
+-    skipdirs="${skipdirs} tk itcl libgui"
++    skipdirs="${skipdirs} libgui"
+     # We won't be able to build gdbtk without X.
+     enable_gdbtk=no 
+     ;;
+@@ -412,21 +412,6 @@ case "${host}" in
+     configdirs="$configdirs libtermcap" ;;
+ esac
+ 
+-# A target can indicate whether a language isn't supported for some reason.
+-# Only spaces may be used in this macro; not newlines or tabs.
+-unsupported_languages=
+-
+-# Remove more programs from consideration, based on the host or 
+-# target this usually means that a port of the program doesn't
+-# exist yet.
+-
+-case "${host}" in
+-  i[[3456789]]86-*-msdosdjgpp*)
+-    noconfigdirs="$noconfigdirs tcl tk itcl"
+-    ;;
+-esac
+-
+-
+ AC_ARG_ENABLE(libquadmath,
+ AS_HELP_STRING([--disable-libquadmath],
+   [do not build libquadmath directory]),
+@@ -966,7 +951,7 @@ case "${target}" in
+     ;;
+     # The tpf target doesn't support gdb yet.
+   *-*-tpf*)
+-    noconfigdirs="$noconfigdirs gdb tcl tk libgui itcl"
++    noconfigdirs="$noconfigdirs gdb libgui"
+     ;;
+   *-*-uclinux*)
+     noconfigdirs="$noconfigdirs target-rda"
+@@ -986,7 +971,7 @@ case "${target}" in
+     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
+     ;;
+   sh*-*-pe|mips*-*-pe|*arm-wince-pe)
+-    noconfigdirs="$noconfigdirs tcl tk itcl libgui sim"
++    noconfigdirs="$noconfigdirs libgui sim"
+     ;;
+   arc*-*-*)
+     noconfigdirs="$noconfigdirs sim"
+@@ -1056,15 +1041,15 @@ case "${target}" in
+     ;;
+   ia64*-*-elf*)
+     # No gdb support yet.
+-    noconfigdirs="$noconfigdirs readline libgui itcl gdb"
++    noconfigdirs="$noconfigdirs readline libgui gdb"
+     ;;
+   ia64*-**-hpux*)
+     # No ld support yet.
+-    noconfigdirs="$noconfigdirs gdb libgui itcl ld"
++    noconfigdirs="$noconfigdirs gdb libgui ld"
+     ;;
+   ia64*-*-*vms*)
+     # No ld support yet.
+-    noconfigdirs="$noconfigdirs libgui itcl ld"
++    noconfigdirs="$noconfigdirs libgui ld"
+     ;;
+   i[[3456789]]86-w64-mingw*)
+     ;;
+@@ -1123,13 +1108,13 @@ case "${target}" in
+     ;;
+   powerpc*-*-winnt* | powerpc*-*-pe*)
+     target_configdirs="$target_configdirs target-winsup"
+-    noconfigdirs="$noconfigdirs gdb tcl tk target-libgloss itcl"
++    noconfigdirs="$noconfigdirs gdb target-libgloss"
+     # always build newlib.
+     skipdirs=`echo " ${skipdirs} " | sed -e 's/ target-newlib / /'`
+     ;;
+     # This is temporary until we can link against shared libraries
+   powerpcle-*-solaris*)
+-    noconfigdirs="$noconfigdirs gdb sim tcl tk itcl"
++    noconfigdirs="$noconfigdirs gdb sim"
+     ;;
+   powerpc-*-beos*)
+     noconfigdirs="$noconfigdirs gdb"
+@@ -2784,7 +2769,7 @@ if echo " ${target_configdirs} " | grep
+   bootstrap_target_libs=${bootstrap_target_libs}target-libvtv,
+ fi
+ 
+-# Determine whether gdb needs tk/tcl or not.
++# Determine whether gdb needs tcl/tk or not.
+ # Use 'maybe' since enable_gdbtk might be true even if tk isn't available
+ # and in that case we want gdb to be built without tk.  Ugh!
+ # In fact I believe gdb is the *only* package directly dependent on tk,
+@@ -2792,7 +2777,7 @@ fi
+ # leave out the maybe dependencies when enable_gdbtk is false.  I'm not
+ # 100% sure that that's safe though.
+ 
+-gdb_tk="maybe-all-tcl maybe-all-tk maybe-all-itcl maybe-all-libgui"
++gdb_tk="maybe-all-libgui"
+ case "$enable_gdbtk" in
+   no)
+     GDB_TK="" ;;
+diff -Naurp a/MAINTAINERS b/MAINTAINERS
+--- a/MAINTAINERS	2020-02-19 15:12:30.324434336 +0100
++++ b/MAINTAINERS	2021-05-21 13:25:25.279043149 +0200
+@@ -94,10 +94,6 @@ texinfo/texinfo.tex
+ 	imported at any (reasonable) time.
+ 	Please not use GCC's texinfo.  Please do not import texinfo.
+ 
+-tcl/; tix/; itcl/; tk/; libgui/
+-	insight: http://sourceware.org/insight/
+-	Contact insight@sourceware.org.
+-
+ winsup/
+ 	cygwin: http://sourceware.org/cygwin
+ 	Patches to cygwin-patches@cygwin.com.
+diff -Naurp a/Makefile.def b/Makefile.def
+--- a/Makefile.def	2021-05-21 13:14:23.722147656 +0200
++++ b/Makefile.def	2021-05-21 13:25:25.279043149 +0200
+@@ -76,9 +76,6 @@ host_modules= { module= libelf; lib_path
+ host_modules= { module= gold; bootstrap=true; };
+ host_modules= { module= gprof; };
+ host_modules= { module= intl; bootstrap=true; };
+-host_modules= { module= tcl;
+-                missing=mostlyclean; };
+-host_modules= { module= itcl; };
+ host_modules= { module= ld; bootstrap=true; };
+ host_modules= { module= libbacktrace; bootstrap=true; };
+ host_modules= { module= libcpp; bootstrap=true; };
+@@ -132,7 +129,6 @@ host_modules= { module= gdbserver; };
+ host_modules= { module= gdb; };
+ host_modules= { module= expect; };
+ host_modules= { module= guile; };
+-host_modules= { module= tk; };
+ host_modules= { module= libtermcap; no_check=true; 
+                 missing=mostlyclean;
+                 missing=clean;
+@@ -444,12 +440,6 @@ dependencies = { module=all-gdbserver; o
+ dependencies = { module=all-gdbserver; on=all-gnulib; };
+ dependencies = { module=all-gdbserver; on=all-libiberty; };
+ 
+-dependencies = { module=configure-libgui; on=configure-tcl; };
+-dependencies = { module=configure-libgui; on=configure-tk; };
+-dependencies = { module=all-libgui; on=all-tcl; };
+-dependencies = { module=all-libgui; on=all-tk; };
+-dependencies = { module=all-libgui; on=all-itcl; };
+-
+ dependencies = { module=configure-gdbsupport; on=configure-gnulib; };
+ dependencies = { module=configure-gdbsupport; on=configure-intl; };
+ dependencies = { module=all-gdbsupport; on=all-gnulib; };
+@@ -534,35 +424,11 @@ dependencies = { module=all-opcodes; on=
+ dependencies = { module=all-opcodes; on=all-intl; };
+ 
+ // Other host modules in the 'src' repository.
+-dependencies = { module=all-dejagnu; on=all-tcl; };
+ dependencies = { module=all-dejagnu; on=all-expect; };
+-dependencies = { module=all-dejagnu; on=all-tk; };
+-dependencies = { module=configure-expect; on=configure-tcl; };
+-dependencies = { module=configure-expect; on=configure-tk; };
+-dependencies = { module=all-expect; on=all-tcl; };
+-dependencies = { module=all-expect; on=all-tk; };
+-
+-// We put install-tcl before install-itcl because itcl wants to run a
+-// program on installation which uses the Tcl libraries.
+-dependencies = { module=configure-itcl; on=configure-tcl; };
+-dependencies = { module=configure-itcl; on=configure-tk; };
+-dependencies = { module=all-itcl; on=all-tcl; };
+-dependencies = { module=all-itcl; on=all-tk; };
+-dependencies = { module=install-itcl; on=install-tcl; };
+-dependencies = { module=install-strip-itcl; on=install-strip-tcl; };
+-
+-dependencies = { module=configure-tk; on=configure-tcl; };
+-dependencies = { module=all-tk; on=all-tcl; };
+ 
+ dependencies = { module=all-sid; on=all-libiberty; };
+ dependencies = { module=all-sid; on=all-bfd; };
+ dependencies = { module=all-sid; on=all-opcodes; };
+-dependencies = { module=all-sid; on=all-tcl; };
+-dependencies = { module=all-sid; on=all-tk; };
+-dependencies = { module=install-sid; on=install-tcl; };
+-dependencies = { module=install-strip-sid; on=install-strip-tcl; };
+-dependencies = { module=install-sid; on=install-tk; };
+-dependencies = { module=install-strip-sid; on=install-strip-tk; };
+ 
+ dependencies = { module=configure-sim; on=all-gnulib; };
+ dependencies = { module=configure-sim; on=configure-intl; };

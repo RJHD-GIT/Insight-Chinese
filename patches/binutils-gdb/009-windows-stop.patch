@@ -1,0 +1,85 @@
+Implement windows_nat_target::stop
+
+As this did not exist, insight stop button was inoperant.
+diff --git a/gdb/windows-nat.c b/gdb/windows-nat.c
+index a26d6eac816..631bd9ea529 100644
+--- a/gdb/windows-nat.c
++++ b/gdb/windows-nat.c
+@@ -225,6 +225,8 @@ struct windows_nat_target final : public x86_nat_target<inf_child_target>
+ {
+   void close () override;
+ 
++  void stop (ptid_t) override;
++
+   void attach (const char *, int) override;
+ 
+   bool attach_no_wait () override
+@@ -1385,24 +1387,10 @@ windows_nat_target::resume (ptid_t ptid, int step, enum gdb_signal sig)
+     windows_continue (continue_status, ptid.lwp (), 0);
+ }
+ 
+-/* Ctrl-C handler used when the inferior is not run in the same console.  The
+-   handler is in charge of interrupting the inferior using DebugBreakProcess.
+-   Note that this function is not available prior to Windows XP.  In this case
+-   we emit a warning.  */
+-static BOOL WINAPI
+-ctrl_c_handler (DWORD event_type)
++/* Stop running current process. */
++static void
++break_process ()
+ {
+-  const int attach_flag = current_inferior ()->attach_flag;
+-
+-  /* Only handle Ctrl-C and Ctrl-Break events.  Ignore others.  */
+-  if (event_type != CTRL_C_EVENT && event_type != CTRL_BREAK_EVENT)
+-    return FALSE;
+-
+-  /* If the inferior and the debugger share the same console, do nothing as
+-     the inferior has also received the Ctrl-C event.  */
+-  if (!new_console && !attach_flag)
+-    return TRUE;
+-
+ #ifdef __x86_64__
+   if (wow64_process)
+     {
+@@ -1433,6 +1421,27 @@ ctrl_c_handler (DWORD event_type)
+ 	warning (_("Could not interrupt program.  "
+ 		   "Press Ctrl-c in the program console."));
+     }
++}
++
++/* Ctrl-C handler used when the inferior is not run in the same console.  The
++   handler is in charge of interrupting the inferior using DebugBreakProcess.
++   Note that this function is not available prior to Windows XP.  In this case
++   we emit a warning.  */
++static BOOL WINAPI
++ctrl_c_handler (DWORD event_type)
++{
++  const int attach_flag = current_inferior ()->attach_flag;
++
++  /* Only handle Ctrl-C and Ctrl-Break events.  Ignore others.  */
++  if (event_type != CTRL_C_EVENT && event_type != CTRL_BREAK_EVENT)
++    return FALSE;
++
++  /* If the inferior and the debugger share the same console, do nothing as
++     the inferior has also received the Ctrl-C event.  */
++  if (!new_console && !attach_flag)
++    return TRUE;
++
++  break_process ();
+ 
+   /* Return true to tell that Ctrl-C has been handled.  */
+   return TRUE;
+@@ -2891,6 +2900,12 @@ windows_nat_target::close ()
+   DEBUG_EVENTS ("inferior_ptid=%d\n", inferior_ptid.pid ());
+ }
+ 
++void
++windows_nat_target::stop (ptid_t ptid)
++{
++  break_process ();
++}
++
+ /* Convert pid to printable format.  */
+ std::string
+ windows_nat_target::pid_to_str (ptid_t ptid)

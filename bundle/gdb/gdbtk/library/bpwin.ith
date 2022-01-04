@@ -1,0 +1,50 @@
+# Breakpoint window class definition for Insight
+# Copyright (C) 1997-2021 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License (GPL) as published by
+# the Free Software Foundation; either version 2 of the License, or (at
+# your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+itcl::class BpWin {
+  inherit PointWin
+
+  constructor {args} {
+    PointWin::constructor {*}$args -PointKind "break"                   \
+      -MenuBar [expr {[pref getd gdb/bp/menu] == ""}]} {
+    toggle_threads
+  }
+
+  public {
+    method enable_disable {n}
+    method store {}
+    method forall {command}
+    method goto {r}
+    method toggle_threads {}
+    method set_type {n}
+
+    # GDB Events
+    method breakpoint {event}
+  }
+
+  private {
+    variable temp
+    variable disposition
+
+    method local_menu {m}
+    method global_menu {m}
+    method update_local_menu {m n args}
+    method header {}
+    method change {event n {color yellow}}
+    method add {event}
+    method get_point_list {}
+  }
+}
+
+# Load methods.
+source "[file rootname [info script]].itb"

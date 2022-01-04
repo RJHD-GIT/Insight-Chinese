@@ -1,0 +1,190 @@
+From d0b737e4af18fdf14d1956467300ff39b8201f86 Mon Sep 17 00:00:00 2001
+From: Patrick Monnerat <patrick@monnerat.net>
+Date: Sat, 11 Sep 2021 02:09:46 +0200
+Subject: [PATCH] Replace deprecated_target_wait_hook by observers
+
+Commit b60cea7 (Make target_wait options use enum flags) broke
+deprecated_target_wait_hook usage: there's a commit comment telling
+this hook has not been converted.
+
+Rather than trying to mend it, this patch replaces the hook by two
+target_wait observers:
+
+target_pre_wait (ptid_t ptid)
+target_post_wait (ptid_t event_ptid)
+
+Upon target_wait entry, target_pre_wait is notified with the ptid
+passed to target_wait. Upon exit, target_post_wait is notified with
+the event ptid returned by target_wait. Should an exception occur,
+event_ptid is null_ptid.
+
+This change benefits to Insight (out-of-tree): there's no real use of the
+late hook in gdb itself.
+---
+ gdb/infrun.c     | 15 +++------------
+ gdb/infrun.h     |  5 ++---
+ gdb/interps.c    |  1 -
+ gdb/observable.c |  2 ++
+ gdb/observable.h |  6 ++++++
+ gdb/target.c     | 14 +++++++++++++-
+ gdb/top.c        |  7 -------
+ 7 files changed, 26 insertions(+), 24 deletions(-)
+
+diff --git a/gdb/infrun.c b/gdb/infrun.c
+index e4739ed14f6..660b7ef3173 100644
+--- a/gdb/infrun.c
++++ b/gdb/infrun.c
+@@ -366,7 +366,7 @@ show_stop_on_solib_events (struct ui_file *file, int from_tty,
+ static bool stop_print_frame;
+ 
+ /* This is a cached copy of the target/ptid/waitstatus of the last
+-   event returned by target_wait()/deprecated_target_wait_hook().
++   event returned by target_wait().
+    This information is returned by get_last_target_status().  */
+ static process_stratum_target *target_last_proc_target;
+ static ptid_t target_last_wait_ptid;
+@@ -3521,7 +3521,6 @@ static ptid_t
+ do_target_wait_1 (inferior *inf, ptid_t ptid,
+ 		  target_waitstatus *status, target_wait_flags options)
+ {
+-  ptid_t event_ptid;
+   struct thread_info *tp;
+ 
+   /* We know that we are looking for an event in the target of inferior
+@@ -3636,12 +3635,7 @@ do_target_wait_1 (inferior *inf, ptid_t ptid,
+   if (!target_can_async_p ())
+     options &= ~TARGET_WNOHANG;
+ 
+-  if (deprecated_target_wait_hook)
+-    event_ptid = deprecated_target_wait_hook (ptid, status, options);
+-  else
+-    event_ptid = target_wait (ptid, status, options);
+-
+-  return event_ptid;
++  return target_wait (ptid, status, options);
+ }
+ 
+ /* Wrapper for target_wait that first checks whether threads have
+@@ -4595,10 +4589,7 @@ poll_one_curr_target (struct target_waitstatus *ws)
+      don't get any event.  */
+   target_dcache_invalidate ();
+ 
+-  if (deprecated_target_wait_hook)
+-    event_ptid = deprecated_target_wait_hook (minus_one_ptid, ws, TARGET_WNOHANG);
+-  else
+-    event_ptid = target_wait (minus_one_ptid, ws, TARGET_WNOHANG);
++  event_ptid = target_wait (minus_one_ptid, ws, TARGET_WNOHANG);
+ 
+   if (debug_infrun)
+     print_target_wait_results (minus_one_ptid, event_ptid, *ws);
+diff --git a/gdb/infrun.h b/gdb/infrun.h
+index 644e57f0bca..8c23afb8c27 100644
+--- a/gdb/infrun.h
++++ b/gdb/infrun.h
+@@ -124,9 +124,8 @@ extern process_stratum_target *user_visible_resume_target (ptid_t resume_ptid);
+ extern int normal_stop (void);
+ 
+ /* Return the cached copy of the last target/ptid/waitstatus returned
+-   by target_wait()/deprecated_target_wait_hook().  The data is
+-   actually cached by handle_inferior_event(), which gets called
+-   immediately after target_wait()/deprecated_target_wait_hook().  */
++   by target_wait().  The data is actually cached by handle_inferior_event(),
++   which gets called immediately after target_wait().  */
+ extern void get_last_target_status (process_stratum_target **target,
+ 				    ptid_t *ptid,
+ 				    struct target_waitstatus *status);
+diff --git a/gdb/interps.c b/gdb/interps.c
+index ec19822b571..55bd10467c3 100644
+--- a/gdb/interps.c
++++ b/gdb/interps.c
+@@ -356,7 +356,6 @@ clear_interpreter_hooks (void)
+   deprecated_readline_hook = 0;
+   deprecated_readline_end_hook = 0;
+   deprecated_context_hook = 0;
+-  deprecated_target_wait_hook = 0;
+   deprecated_call_command_hook = 0;
+   deprecated_error_begin_hook = 0;
+ }
+diff --git a/gdb/observable.c b/gdb/observable.c
+index fe88b0bf702..12ee410cc4e 100644
+--- a/gdb/observable.c
++++ b/gdb/observable.c
+@@ -79,6 +79,8 @@ DEFINE_OBSERVABLE (styling_changed);
+ DEFINE_OBSERVABLE (current_source_symtab_and_line_changed);
+ DEFINE_OBSERVABLE (gdb_exiting);
+ DEFINE_OBSERVABLE (connection_removed);
++DEFINE_OBSERVABLE (target_pre_wait);
++DEFINE_OBSERVABLE (target_post_wait);
+ 
+ } /* namespace observers */
+ } /* namespace gdb */
+diff --git a/gdb/observable.h b/gdb/observable.h
+index d3c441dc764..e8f876fecf7 100644
+--- a/gdb/observable.h
++++ b/gdb/observable.h
+@@ -256,6 +256,12 @@ extern observable<int> gdb_exiting;
+ /* When a connection is removed.  */
+ extern observable<process_stratum_target */* target */> connection_removed;
+ 
++/* About to enter target_wait (). */
++extern observable <ptid_t /* ptid */> target_pre_wait;
++
++/* About to leave target_wait (). */
++extern observable <ptid_t /* event_ptid */> target_post_wait;
++
+ } /* namespace observers */
+ 
+ } /* namespace gdb */
+diff --git a/gdb/target.c b/gdb/target.c
+index 06a21c46a19..0be8eaa17e7 100644
+--- a/gdb/target.c
++++ b/gdb/target.c
+@@ -26,6 +26,7 @@
+ #include "symtab.h"
+ #include "inferior.h"
+ #include "infrun.h"
++#include "observable.h"
+ #include "bfd.h"
+ #include "symfile.h"
+ #include "objfiles.h"
+@@ -2609,7 +2610,18 @@ target_wait (ptid_t ptid, struct target_waitstatus *status,
+   if (!target_can_async_p (target))
+     gdb_assert ((options & TARGET_WNOHANG) == 0);
+ 
+-  return target->wait (ptid, status, options);
++  try
++    {
++      gdb::observers::target_pre_wait.notify (ptid);
++      ptid_t event_ptid = target->wait (ptid, status, options);
++      gdb::observers::target_post_wait.notify (event_ptid);
++      return event_ptid;
++    }
++  catch (...)
++    {
++      gdb::observers::target_post_wait.notify (null_ptid);
++      throw;
++    }
+ }
+ 
+ /* See target.h.  */
+diff --git a/gdb/top.c b/gdb/top.c
+index 1f9e649a85d..cd5820ee144 100644
+--- a/gdb/top.c
++++ b/gdb/top.c
+@@ -247,13 +247,6 @@ void (*deprecated_readline_end_hook) (void);
+ void (*deprecated_attach_hook) (void);
+ void (*deprecated_detach_hook) (void);
+ 
+-/* Called when going to wait for the target.  Usually allows the GUI
+-   to run while waiting for target events.  */
+-
+-ptid_t (*deprecated_target_wait_hook) (ptid_t ptid,
+-				       struct target_waitstatus *status,
+-				       int options);
+-
+ /* Used by UI as a wrapper around command execution.  May do various
+    things like enabling/disabling buttons, etc...  */
+ 
+-- 
+2.33.1
+

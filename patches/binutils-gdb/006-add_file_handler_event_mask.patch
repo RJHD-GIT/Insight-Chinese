@@ -1,0 +1,115 @@
+diff -Naurp a/gdbsupport/event-loop.cc b/gdbsupport/event-loop.cc
+--- a/gdbsupport/event-loop.cc	2021-10-13 17:30:56.785368825 +0200
++++ b/gdbsupport/event-loop.cc	2021-10-13 17:44:46.288571282 +0200
+@@ -28,6 +28,11 @@
+ #elif defined (HAVE_SYS_POLL_H)
+ #include <sys/poll.h>
+ #endif
++#if defined(POLLRDHUP)
++#define POLL_HANGUP POLLRDHUP
++#else
++#define POLL_HANGUP 0
++#endif
+ #endif
+ 
+ #include <sys/types.h>
+@@ -39,13 +44,6 @@
+ 
+ debug_event_loop_kind debug_event_loop;
+ 
+-/* Tell create_file_handler what events we are interested in.
+-   This is used by the select version of the event loop.  */
+-
+-#define GDB_READABLE	(1<<1)
+-#define GDB_WRITABLE	(1<<2)
+-#define GDB_EXCEPTION	(1<<3)
+-
+ /* Information about each file descriptor we register with the event
+    loop.  */
+ 
+@@ -277,12 +275,16 @@ gdb_do_one_event (int mstimeout)
+ 
+ void
+ add_file_handler (int fd, handler_func *proc, gdb_client_data client_data,
+-		  std::string &&name, bool is_ui)
++		  std::string &&name, bool is_ui, int mask)
+ {
+ #ifdef HAVE_POLL
+   struct pollfd fds;
++  int pollmask = 0;
+ #endif
+ 
++  if (fd < 0 || (mask & (GDB_READABLE | GDB_WRITABLE | GDB_EXCEPTION)) == 0)
++    return;
++
+   if (use_poll)
+     {
+ #ifdef HAVE_POLL
+@@ -291,8 +293,15 @@ add_file_handler (int fd, handler_func *
+ 	 m68k-motorola-sys, `poll' cannot be used to wait for `stdin'.
+ 	 On m68k-motorola-sysv, tty's are not stream-based and not
+ 	 `poll'able.  */
++      if (mask & GDB_READABLE)
++        pollmask |= POLLIN | POLL_HANGUP;
++      if (mask & GDB_WRITABLE)
++        pollmask |= POLLOUT;
++      if (mask & GDB_EXCEPTION)
++        pollmask |= POLLPRI;
+       fds.fd = fd;
+-      fds.events = POLLIN;
++      fds.events = pollmask;
++
+       if (poll (&fds, 1, 0) == 1 && (fds.revents & POLLNVAL))
+ 	use_poll = 0;
+ #else
+@@ -303,7 +312,7 @@ add_file_handler (int fd, handler_func *
+   if (use_poll)
+     {
+ #ifdef HAVE_POLL
+-      create_file_handler (fd, POLLIN, proc, client_data, std::move (name),
++      create_file_handler (fd, pollmask, proc, client_data, std::move (name),
+ 			   is_ui);
+ #else
+       internal_error (__FILE__, __LINE__,
+@@ -311,8 +320,7 @@ add_file_handler (int fd, handler_func *
+ #endif
+     }
+   else
+-    create_file_handler (fd, GDB_READABLE | GDB_EXCEPTION,
+-			 proc, client_data, std::move (name), is_ui);
++    create_file_handler (fd, mask, proc, client_data, std::move (name), is_ui);
+ }
+ 
+ /* Helper for add_file_handler.
+diff -Naurp a/gdbsupport/event-loop.h b/gdbsupport/event-loop.h
+--- a/gdbsupport/event-loop.h	2021-10-13 17:30:56.786368835 +0200
++++ b/gdbsupport/event-loop.h	2021-10-13 17:31:24.338642800 +0200
+@@ -70,11 +70,17 @@
+ 
+    Corollary tasks are the creation and deletion of event sources.  */
+ 
++/* Tell add_file_handler what events we are interested in. */
++
++#define GDB_READABLE	(1<<1)
++#define GDB_WRITABLE	(1<<2)
++#define GDB_EXCEPTION	(1<<3)
++
+ typedef void *gdb_client_data;
+ typedef void (handler_func) (int, gdb_client_data);
+ typedef void (timer_handler_func) (gdb_client_data);
+ 
+-/* Exported functions from event-loop.c */
++/* Exported functions from event-loop.cc */
+ 
+ extern int gdb_do_one_event (int mstimeout = -1);
+ extern void delete_file_handler (int fd);
+@@ -90,7 +96,8 @@ extern void delete_file_handler (int fd)
+ 
+ extern void add_file_handler (int fd, handler_func *proc,
+ 			      gdb_client_data client_data,
+-			      std::string &&name, bool is_ui = false);
++			      std::string &&name, bool is_ui = false,
++			      int mask = GDB_READABLE | GDB_EXCEPTION);
+ 
+ extern int create_timer (int milliseconds, 
+ 			 timer_handler_func *proc, 

@@ -1,0 +1,43 @@
+# Tracepoint window class definition for Insight
+# Copyright (C) 1997-2021 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License (GPL) as published by
+# the Free Software Foundation; either version 2 of the License, or (at
+# your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+itcl::class TpWin {
+  inherit PointWin
+
+  constructor {args} {
+    PointWin::constructor {*}$args -PointKind "trace"                   \
+      -MenuBar [expr {[pref getd gdb/tp/menu] == ""}]
+  } {}
+
+
+  public {
+    method store {}
+    method get_actions {r}
+    method goto {r}
+
+    # GDB Events
+    method tracepoint {event}
+  }
+
+  private {
+    method local_menu {m}
+    method update_local_menu {m n args}
+    method header {}
+    method change {event n {color yellow}}
+    method add {event}
+    method get_point_list {}
+  }
+}
+
+# Load methods.
+source "[file rootname [info script]].itb"

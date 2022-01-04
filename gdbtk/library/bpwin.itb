@@ -1,0 +1,265 @@
+# Breakpoint window class methods for Insight
+# Copyright (C) 1997-2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License (GPL) as published by
+# the Free Software Foundation; either version 2 of the License, or (at
+# your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  global_menu - add entries to global menu
+# ------------------------------------------------------------------
+itcl::body BpWin::global_menu {m} {
+  $m add check -label " Show Threads" -underline 1                      \
+    -variable [pref varname gdb/bp/show_threads] -command "$this toggle_threads"
+  $m add separator
+  chain $m
+}
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  local_menu - add entries to local menu
+# ------------------------------------------------------------------
+itcl::body BpWin::local_menu {m} {
+  $m add radio -label "Normal" -value donttouch -underline 0 -state disabled
+  $m add radio -label "Temporary" -value delete -underline 0 -state disabled
+  $m add separator
+  chain $m
+}
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  update_local_menu - update local menu entries
+# ------------------------------------------------------------------
+itcl::body BpWin::update_local_menu {m n args} {
+  set disp [namespace which -variable disposition]
+  $m entryconfigure "Normal" -variable ${disp}($n)                      \
+    -command "$this set_type $n" {*}$args
+  $m entryconfigure "Temporary" -variable ${disp}($n)                   \
+    -command "$this set_type $n" {*}$args
+  chain $m $n {*}$args
+}
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  header - return column headers list
+# ------------------------------------------------------------------
+itcl::body BpWin::header {} {
+  grid columnconfigure $twin 4 -weight 1
+  grid columnconfigure $twin 6 -weight 1
+  return [list                                                          \
+            [list num "Num"]                                            \
+            [list thread "Thread"]                                      \
+            [list addr "Address"]                                       \
+            [list file "File"]                                          \
+            [list line "Line"]                                          \
+            [list func "Function"]                                      \
+            [list cond "Condition"]                                     \
+            [list ignore "Ignore"]                                      \
+            [list hits "Hits"]]
+}
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  change - update a breakpoint entry
+# ------------------------------------------------------------------
+itcl::body BpWin::change {event n {color yellow}} {
+  set number [$event get number]
+  set thread [$event get thread]
+  set file [basename [$event get file]]
+  set disposition($n) [$event get disposition]
+  set cond [$event get condition]
+  set ignore [$event get ignore_count]
+
+  set temp($n) ""
+
+  switch $disposition($n) {
+    donttouch { set color [pref get gdb/src/bp_fg] }
+    delete {
+      set color [pref get gdb/src/temp_bp_fg]
+      set temp($n) delete
+    }
+  }
+
+  if {$thread != "-1"} {
+    set color [pref get gdb/src/thread_fg]
+  } else {
+    set thread "ALL"
+  }
+
+  set balloon ""
+  if {[string length $cond] > 20} {
+    set balloon $cond
+    set cond [string range $cond 0 19]...
+  }
+
+  if {$ignore == 0} {
+    set ignore ""
+  }
+
+  chain $event $n $color
+  $twin.num$n configure -text "$number "
+  $twin.thread$n configure -text "$thread "
+  $twin.addr$n configure -text "[gdb_CA_to_TAS [$event get address]] "
+  $twin.file$n configure -text "$file "
+  $twin.line$n configure -text "[$event get line] "
+  $twin.func$n configure -text "[$event get function] "
+  $twin.cond$n configure -text "$cond "
+  balloon register $twin.cond$n $balloon
+  $twin.ignore$n configure -text "$ignore "
+  $twin.hits$n configure -text "[$event get hit_count] "
+}
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  add - add a breakpoint entry
+# ------------------------------------------------------------------
+itcl::body BpWin::add {event} {
+  set n $next_row
+  label $twin.num$n -relief flat -anchor w -font global/fixed
+  label $twin.thread$n -relief flat -anchor w -font global/fixed
+  label $twin.addr$n -relief flat -anchor w -font global/fixed -bg $bg1
+  label $twin.file$n -relief flat -anchor w -font global/fixed
+  label $twin.line$n -relief flat -anchor w -font global/fixed
+  label $twin.func$n -relief flat -anchor w -font global/fixed
+  label $twin.cond$n -relief flat -anchor w -font global/fixed
+  label $twin.ignore$n -relief flat -anchor w -font global/fixed
+  label $twin.hits$n -relief flat -anchor w -font global/fixed
+  chain $event
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD:  store - stores away the breakpoints in a file of
+#                      gdb commands
+# ------------------------------------------------------------------
+itcl::body BpWin::store {} {
+  set out_file [tk_getSaveFile]
+  if {$out_file == ""} {
+    return
+  }
+  if {[catch {::open $out_file w} outH]} {
+    tk_messageBox -message "Could not open $out_file: $outH"
+    return
+  }
+
+  foreach breakpoint [gdb_get_breakpoint_list] {
+    # This is an lassign
+    foreach {file function line_no address type                         \
+               enable_p disp ignore cmds cond thread hit_count}         \
+      [gdb_get_breakpoint_info $breakpoint] {
+        break
+      }
+
+    if {$file != ""} {
+      set filename [file tail $file]
+      set specifier $filename:$line_no
+    } else {
+      set specifier *$address
+    }
+
+    if {[string compare $disp "delete"] == 0} {
+      puts $outH "tbreak $specifier"
+    } else {
+      puts $outH "break $specifier"
+    }
+
+    store_detail $outH "\$bpnum" "" commands $cmds $cond $enable_p $ignore
+  }
+
+  close $outH
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD:  forall - perform a command on all breakpoints
+# ------------------------------------------------------------------
+itcl::body BpWin::forall {command} {
+  if {$command == "enable"} {
+    foreach num [gdb_get_breakpoint_list] {
+      for {set i 1} {$i < $next_row} {incr i} {
+        if {$num == $index_to_num($i)} {
+          gdb_cmd "enable $temp($i) $num"
+          break
+        }
+      }
+    }
+  } else {
+    chain $command
+  }
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD: enable_disable - enable/disable a breakpoint
+# ------------------------------------------------------------------
+itcl::body BpWin::enable_disable {n} {
+  chain $n $temp($n)
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD:  breakpoint - Update widget when a breakpoint
+#                   event is received from the backend.
+# ------------------------------------------------------------------
+itcl::body BpWin::breakpoint {event} {
+  set action [$event get action]
+  #debug "bp update $action [$event get number] [$event get type]"
+
+  switch $action {
+    modify  { modify $event }
+    create  { add $event }
+    delete  { delete_point $event }
+    default { dbug E "Unknown breakpoint action: $action" }
+  }
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD:  toggle_threads - Hide/show thread column.
+# ------------------------------------------------------------------
+itcl::body BpWin::toggle_threads {} {
+  set show_threads [pref get gdb/bp/show_threads]
+  if {$show_threads} {
+    show_column thread
+  } else {
+    hide_column thread
+  }
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD:  set_type - Set breakpoint type (disposition).
+# ------------------------------------------------------------------
+itcl::body BpWin::set_type {n} {
+  set num $index_to_num($n)
+  #debug "set_type $n $num"
+  set info [gdb_get_breakpoint_info $num]
+  lassign $info file func line pc type enable_p disp ignore_count       \
+    commands cond thread hit_count
+  select $n
+  switch $disposition($n) {
+    donttouch {
+      gdb_cmd "delete $num"
+      gdb_cmd "break *$pc"
+    }
+    delete {
+      gdb_cmd "delete $num"
+      gdb_cmd "tbreak *$pc"
+    }
+    default { debug "Unknown breakpoint disposition: $disposition($n)" }
+  }
+}
+
+# ------------------------------------------------------------------
+#  PUBLIC METHOD:  goto - show breakpoint in source window
+# ------------------------------------------------------------------
+itcl::body BpWin::goto {r} {
+  set num $index_to_num($r)
+  set info [gdb_get_breakpoint_info $num]
+  set pc [lindex $info 3]
+
+  SrcWin::choose_and_display BROWSE_TAG [gdb_loc *$pc]
+}
+
+# ------------------------------------------------------------------
+#  PRIVATE METHOD:  get_point_list - return current breakpoint list
+# ------------------------------------------------------------------
+itcl::body BpWin::get_point_list {} {
+  return [gdb_get_breakpoint_list]
+}

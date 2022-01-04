@@ -1,0 +1,80 @@
+		insight: the gdb tcl/tk graphic interface
+		-----------------------------------------
+
+The GUI part of insight is now maintained outside the gdb tree. Bundles are
+therefore needed to get the whole code embedded. They are implemented as:
+
+- bfd, opcodes, texinfo, readline, libiberty, include, sim, cpu, intl and
+  libdecnumber are now bundles of binutils-gdb.
+
+- libgui does not appear in any other repository and thus is now part of
+  insight.
+
+- binutils-gdb is included as a git submodule.
+
+- tcl, tk, itcl, itk and iwidgets must be provided externally.
+
+
+Cloning:
+  After a simple clone, the submodule has to be initialized and downloaded. This
+is done as:
+	git clone <url>
+	cd insight.git
+	git submodule init
+	git submodule update
+
+Alternatively, initial cloning can be performed as:
+	git clone --recursive <url>
+
+Updating:
+  For automatic submodule pulls upon main module pull, set
+
+	git config fetch.recurseSubmodules true
+
+else use
+
+	git submodule foreach --recursive git pull
+
+when submodule pulls are required.
+If upgrade of submodules is needed, finish update by
+
+	git submodule update --remote
+
+
+Building:
+- Prepare the configuration scripts with:
+autoconf
+
+- Configure the package with the needed options. In example:
+./configure	--prefix=/usr/.						\
+		--libdir=/usr/lib64					\
+		--disable-binutils					\
+		--disable-elfcpp					\
+		--disable-gas						\
+		--disable-gold						\
+		--disable-gprof						\
+		--disable-ld						\
+		--disable-rpath						\
+		--disable-zlib						\
+		--enable-sim						\
+		--with-gdb-datadir=/usr/share/insight			\
+		--with-jit-reader-dir=/usr/lib64/insight		\
+		--with-separate-debug-dir='/usr/lib/debug'		\
+		--with-expat						\
+		--with-python						\
+		--without-isl
+
+  The configure script builds the "bundle" directory where the rest of
+  the build will be performed.
+
+- run make: the top Makefile is only a stub recursively making in the
+  "bundle" directory.
+
+
+To produce a source release tarball:
+- Start from a FRESH recursive clone. Work in its top directory.
+- autoconf
+- configure
+- (cd bundle; ./src-release.sh [-b|-g|-x] insight)
+  -b, -g and -x compress the tarball with bzip2, gzip and xz respectively.
+Tarball is left in file bundle/insight-VE.RS.ION.DATE.tar[.suffix]

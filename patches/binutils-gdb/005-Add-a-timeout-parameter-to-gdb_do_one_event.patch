@@ -1,0 +1,134 @@
+From dc7799cb85f732b980bbb9bea42d2fab57ac290b Mon Sep 17 00:00:00 2001
+From: Patrick Monnerat <patrick@monnerat.net>
+Date: Fri, 24 Sep 2021 14:22:08 +0200
+Subject: [PATCH] Add a timeout parameter to gdb_do_one_event
+
+Since commit b2d8657, having a per-interpreter event/command loop is not
+possible anymore.
+
+As Insight uses a GUI that has its own event loop, gdb and GUI event
+loops have then to be "merged" (i.e.: work together). But this is
+problematic as gdb_do_one_event is not aware of this alternate event
+loop and thus may wait forever.
+
+The solution is to implement a wait timeout to gdb_do_one_event. This
+cannot be done externally as gdb timers are event sources themselves.
+
+The new parameter defaults to "no timeout": as it is used by Insight
+only, there is no need to update calls from the gdb source tree.
+---
+ gdbsupport/event-loop.cc | 55 +++++++++++++++++++++++++++++++---------
+ gdbsupport/event-loop.h  |  2 +-
+ 2 files changed, 44 insertions(+), 13 deletions(-)
+
+diff --git a/gdbsupport/event-loop.cc b/gdbsupport/event-loop.cc
+index 98d1ada52cd..ae76abb9976 100644
+--- a/gdbsupport/event-loop.cc
++++ b/gdbsupport/event-loop.cc
+@@ -33,6 +33,7 @@
+ #include <sys/types.h>
+ #include "gdbsupport/gdb_sys_time.h"
+ #include "gdbsupport/gdb_select.h"
++#include "gdbsupport/gdb_optional.h"
+ 
+ /* See event-loop.h.  */
+ 
+@@ -177,16 +178,22 @@ static int update_wait_timeout (void);
+ static int poll_timers (void);
+ 
+ /* Process one high level event.  If nothing is ready at this time,
+-   wait for something to happen (via gdb_wait_for_event), then process
+-   it.  Returns >0 if something was done otherwise returns <0 (this
+-   can happen if there are no event sources to wait for).  */
++   wait at most MSTIMEOUT milliseconds for something to happen (via
++   gdb_wait_for_event), then process it.  Returns >0 if something was
++   done, <0 if there are no event sources to wait for, =0 if timeout occurred.
++   A timeout of 0 allows to serve an already pending event, but does not
++   wait if none found.
++   Setting the timeout to a negative value disables it.
++   The timeout is never used by gdb itself, it is however needed to
++   integrate gdb event handling within Insight's GUI event loop. */
+ 
+ int
+-gdb_do_one_event (void)
++gdb_do_one_event (int mstimeout)
+ {
+   static int event_source_head = 0;
+   const int number_of_sources = 3;
+   int current = 0;
++  int res = 0;
+ 
+   /* First let's see if there are any asynchronous signal handlers
+      that are ready.  These would be the result of invoking any of the
+@@ -198,8 +205,6 @@ gdb_do_one_event (void)
+      round-robin fashion.  */
+   for (current = 0; current < number_of_sources; current++)
+     {
+-      int res;
+-
+       switch (event_source_head)
+ 	{
+ 	case 0:
+@@ -232,14 +237,40 @@ gdb_do_one_event (void)
+   /* Block waiting for a new event.  If gdb_wait_for_event returns -1,
+      we should get out because this means that there are no event
+      sources left.  This will make the event loop stop, and the
+-     application exit.  */
++     application exit.
++     If a timeout has been given, a new timer is set accordingly
++     to abort event wait.  It is deleted upon gdb_wait_for_event
++     termination and thus should never be triggered.
++     When the timeout is reached, events are not monitored again:
++     they already have been checked in the loop above. */
++
++  res = 0;
++  if (mstimeout != 0)
++    {
++      gdb::optional<int> timer_id;
+ 
+-  if (gdb_wait_for_event (1) < 0)
+-    return -1;
++      try
++	{
++	  if (mstimeout > 0)
++	    timer_id = create_timer (mstimeout,
++				     [] (gdb_client_data arg)
++				     {
++				       ((gdb::optional<int> *) arg)->reset ();
++				     },
++				     &timer_id);
++	  res = gdb_wait_for_event (1);
++	  if (timer_id.has_value ())
++	    delete_timer (*timer_id);
++	}
++      catch (...)
++	{
++	  if (timer_id.has_value ())
++	    delete_timer (*timer_id);
++	  throw;
++	}
++    }
+ 
+-  /* If gdb_wait_for_event has returned 1, it means that one event has
+-     been handled.  We break out of the loop.  */
+-  return 1;
++  return res;
+ }
+ 
+ /* See event-loop.h  */
+diff --git a/gdbsupport/event-loop.h b/gdbsupport/event-loop.h
+index dc4e4d59f03..cf62f654c1c 100644
+--- a/gdbsupport/event-loop.h
++++ b/gdbsupport/event-loop.h
+@@ -76,7 +76,7 @@ typedef void (timer_handler_func) (gdb_client_data);
+ 
+ /* Exported functions from event-loop.c */
+ 
+-extern int gdb_do_one_event (void);
++extern int gdb_do_one_event (int mstimeout = -1);
+ extern void delete_file_handler (int fd);
+ 
+ /* Add a file handler/descriptor to the list of descriptors we are
+-- 
+2.33.1
+

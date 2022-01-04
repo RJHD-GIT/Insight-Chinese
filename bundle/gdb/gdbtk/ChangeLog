@@ -1,0 +1,332 @@
+2015-07-01  Patrick Monnerat <pm@datasphere.ch>
+
+	* !!! From now on, changelog is maintained in the git commit log !!!
+
+2015-03-18  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c (gdb_loadfile): transcode read line from
+	tcl system encoding to utf-8.
+
+2015-03-17  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/about.tcl: remove "Red Hat" from about window title.
+
+2015-03-13  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk.c: rename TK_PLATFORM_WINDOWS to TK_PLATFORM_WIN.
+
+2015-03-10  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-varobj.c (variable_print): reinstate custom format
+	  (base).
+	* generic/gdbtk.c: use Tk defined platform for conditionals instead of
+	  _WIN32.
+	* library/main.tcl: accept itck/itk minimum version 3.3.
+
+2015-03-09  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-bp.c: TRY_CATCH --> TRY/CATCH/END_CATCH.
+	* generic/gdbtk-varobj.c: likewise.
+
+2015-03-06  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-hooks.c (gdbtk_warning()): avoid destroying parent
+	  globals if child created via vfork().
+
+2015-03-05  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-hooks.c: new procedure gdbtk_getpid().
+	* generic/gdbtk.h: likewise.
+	* generic/gdbtk.c: set main process id in new global gdbtk_pid.
+	* generic/gdbtk-hooks.c (gdbtk_warning()): if called from a child
+	  process, restore default gdb warning response to stderr.
+
+2015-03-03  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/managedwin.itb: Set top window icon.
+	* generic/gdbtk-hooks.c: adjust to gdb update.
+
+2015-03-02  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/images/gdbtk_icon.gif: replaced with new look.
+	* library/images2/gdbtk_icon.gif: likewise.
+	* library/images/insight.gif: replaced with new look.
+	* library/images2/insight.gif: likewise.
+	* library/about.tcl: adjust background color to new logo.
+
+2015-02-18  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/srctextwin.itb: Pretty printers in tooltips.
+	* library/prefs.tcl: Lighter checkbox background.
+
+2015-02-16  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/interface.tcl: Do not issue target command if empty.
+	* library/main.tcl: Accept lowercase and capitalized package names.
+          Be more tolerant about package versions (no max).
+
+2015-02-13  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/memwin.itb: update_address: try to use expressions as
+	  lvalues (use expression address). If it fails, fall back to
+	  expression value.
+	* library/memwin.itb: use string after last space as address (instead
+	  of string before first space).
+	* library/memwin.itb: update_address: check address syntax.
+
+2015-02-10  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-varobj.c: variable_print(): implement pretty printers
+	  in local variables and watch windows.
+	* library/vartree.itb: Likewise.
+
+2015-01-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: gdb_search(): fix a null pointer derefernce
+	  that makes function browser segfaulting.
+
+2015-01-23  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-register.c: Use target architecture instead of
+	  current (frame) architecture for allocation upon architecture change.
+
+2015-01-12  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: use symbol_symtab() function instead of
+	  macro SYMBOL_SYMTAB().
+
+2014-12-19  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: use SYMBOL_SYMTAB() macro.
+
+2014-12-16  Simon Marchi <simon.marchi@ericsson.com>
+
+	* generic/gdbtk-hooks: gdbtk_readline(): Use const for prompt to
+	  match gdb hook signature.
+
+2014-11-25  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-bp.c: adjust code to the new compunit_symtab/symtab
+	  split structures.
+	* generic/gdbtk-cmds.c: Likewise, and use new macros.
+
+2014-10-16  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-stack.c: gdb_get_blocks(): Do not reject blocks ending
+	  with junk (i.e.: non displayable symbol).
+
+2014-08-29  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-hooks.c: gdbtk_exec_file_display(): Use const for
+	  filename.
+	* generic/gdbtk-hooks.c: gdbtk_two_elem_cmd(): Use const for argv1.
+	* generic/gdbtk.h: Likewise.
+
+2014-08-01  Patrick Monnerat <pm@datasphere.ch>
+
+	* insight.desktop (new file): freedesktop standard launcher.
+
+2014-07-25  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk.c: target_is_native(): use "const" for name.
+
+2014-07-15  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/Makefile.am: Replace "cygnus" by "foreign no-dist" in
+	  AUTOMAKE_OPTIONS.
+	* gdbtk/plugins/Makefile.am: Likewise.
+	* libgui/Makefile.am: Likewise.
+	* libgui/library/Makefile.am: Likewise.
+	* libgui/src/Makefile.am: Likewise.
+
+2014-07-15  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: Use const for another readonly function arg.
+
+2014-07-10  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-interp.c: disable target-async mode (not working).
+	* generic/gdbtk.c: Add native target name "native".
+
+2014-07-01  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/main.tcl: adjust itcl/itk/iwidgets package names to
+	  all lowercase.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* library/main.tcl: upgrade required package versions.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: gdb_listfuncs(): Make blockvector readonly.
+	* generic/gdbtk-stack.c: Support readonly block structures.
+	* generic/gdbtk-wrapper.[ch]: Likewise.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.[ch]: symtab_to_filename() result is const.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-interp.c: Field prompt_proc_p of structure
+	  interp_procs does not exist anymore.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-interp.c: Macro XCNEW renames XZALLOC.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: Minimal symbols have now their own
+	  MSYMBOL_* macros.
+	* generic/gdbtk.h: Define GDBTK_MSYMBOL_SOURCE_NAME macro.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: map_partial_symbol_filenames renamed to
+	  map_symbol_filenames.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: current_target callbacks no longer
+	  initialized: compare to_stop with NULL instead of target_ignore.
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-cmds.c: include "gdb_stat.h" --> <sys/stat.h>
+	* generic/gdbtk.c: Likewise
+
+2014-06-30  Patrick Monnerat <pm@datasphere.ch>
+
+	* generic/gdbtk-bp.c: include "gdb_string.h" --> <string.h>
+	* generic/gdbtk.c: Likewise
+	* generic/gdbtk-cmds.c: Likewise
+	* generic/gdbtk-hooks.c: Likewise
+	* generic/gdbtk-interp.c: Likewise
+	* generic/gdbtk-main.c: Likewise
+	* generic/gdbtk-register.c: Likewise
+	* generic/gdbtk-varobj.c: Likewise
+
+2014-01-13  Tom Tromey  <tromey@redhat.com>
+
+	* generic/gdbtk-main.c (main): Don't set use_windows.
+
+2014-01-09  Tom Tromey  <tromey@redhat.com>
+
+	* generic/gdbtk-hooks.c (gdbtk_add_hooks): Use
+	command_param_changed observer, not deprecated_set_hook.
+	(gdbtk_param_changed): Rename from gdbtk_set_hook.  Simplify.
+
+2013-09-20  Andrew Burgess  <aburgess@broadcom.com>
+
+	* generic/gdbtk-register.c (register_changed_p): Replace use of
+	deprecated_frame_register_read with get_frame_register_value.
+
+2013-09-20  Andrew Burgess  <aburgess@broadcom.com>
+
+	* generic/gdbtk.c: Add include of "main.h".
+	(gdbtk_init_1): Remove.
+	(argv0): Remove.
+	(_initialize_gdbtk): No longer set deprecated_init_ui_hook.
+	(gdbtk_init): Use get_gdb_program_name function from main.h.
+
+2013-09-06  Andrew Burgess  <aburgess@broadcom.com>
+
+	* library/interface.tcl (gdbtk_tcl_architecture_changed): Add call
+	to gdb_reg_arch_changed.
+	* library/regwin.itb (arch_changed): Remove call to
+	gdb_reg_arch_changed.
+
+2013-09-06  Andrew Burgess  <aburgess@broadcom.com>
+
+	* generic/gdbk-register.c (old_regs_count): New variable.
+	(register_changed_p): Add new assert.
+	(setup_architecture_data): Initialise old_regs_count.
+
+2013-09-05  Andrew Burgess  <aburgess@broadcom.com>
+
+	* generic/gdbk-register.c (old_regs): Move the comment about this
+	variable next to the definition.
+
+2013-09-05  Andrew Burgess  <aburgess@broadcom.com>
+
+	* generic/gdbtk-interp.c (gdbtk_command_loop): Change signature to
+	take interpreter cookie (ignored), mention parameter in comment.
+	(gdb_interpreter_resume): Remove use of
+	deprecated_command_loop_hook.
+	(_initialize_gdbtk_interp): Fill in logging proc and command loop
+	proc pointers.
+
+2013-08-15  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk-cmds.c (gdb_search): Update for symbol
+	searching API update in gdb.
+
+2013-07-30  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk-cmds.c (gdb_clear_file): Remove use of pop_target,
+	which was recently removed from gdb.
+
+2013-07-23  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk.c (close_bfds): Update declaration.
+
+2013-07-15  Roland Schwingel  <roland.schwingel@onevision.com>
+
+	* generic/gdbtk-register.c (get_register): Update
+	to reflect changes from upstream gdb. Prettyprinting
+	becomes prettyformatting now.
+	* generic/gdbtk-wrapper.c (GDB_val_print,wrap_val_print):
+	Likewise.
+	* generic/gdbtk-wrapper.h (GDB_val_print): Likewise.
+
+2013-07-02  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk-cmds.c (gdb_listfuncs): Update declaration.
+	* generic/gdbtk-hooks.c (gdb_two_elem_cmd): Likewise.
+	(report_error): Likewise.
+	(gdbtk_readline_end, gdbtk_post_add_symbol, gdbtk_error_begin,
+	gdbtk_attach): Likewise.
+	* generic/gdbtk/gdbtk-register.c (setup_architecture_data):
+	Likewise.
+	* generic/gdbtk-wrapper.c (GDB_equal_value, GDB_reinit_frame_cache,
+	GDB_value-coerce_array): Likewise.
+	* generic/gdbtk.c (gdbtk_interactive, gdbtk_start_timer,
+	gdbtk_stop_timer, _initialize_gdbtk): Likewise.
+
+2013-06-05  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk-stack.c (get_frame_name): Change type of 'funname'
+	to char * to follow recent API updates in gdb.
+	Free 'funname' after appending it to the list.
+	Remove check for NULL funname in a branch where it could only
+	ever be NULL.
+
+2013-06-05  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk-register.c (map_arg_registers): Change type of
+	raw_buffer to gdb_byte to follow recent API changes in gdb.
+	* generic/gdbtk-cmds.c (gdb_update_mem): Likewise for ' mbfu',
+	'mptr', and 'cptr'.
+
+2013-06-05  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk.c (tk_command): Use xfree instead of free.
+	* generic/gdbtk-hooks.c (gdbtk_call_command): Remove unused
+	cleanup.
+	* generic/gdbtk-cmds.c (gdb_load_info): If bfd_check_format
+	fails, run the cleanup.
+
+2013-04-13  Kevin Buettner  <kevinb@redhat.com>
+
+	* generic/gdbtk-cmds.c (pc_function_name): Adjust type of
+	`msym' to account for change in return type of
+	lookup_minimal_symbol_by_pc().
+
+2013-02-15  Keith Seitz  <keiths@redhat.com>
+
+	* generic/gdbtk-bp.c (gdb_find_bp_at_line): Update struct
+	bp_location changes wrt source_file from GDB.
+
+
